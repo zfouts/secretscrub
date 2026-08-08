@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # An escape hatch. Without it a workflow with no runs cannot be started at
+  # all: GitHub drops it from the Actions tab, its badge renders blank, and the
+  # only way back is a commit. Deleting every run of a workflow is enough to get
+  # there.
+  workflow_dispatch:
   schedule:
     # A weekly run catches a vulnerability disclosed against a Go release we
     # build with, which a push-triggered pipeline would not.
