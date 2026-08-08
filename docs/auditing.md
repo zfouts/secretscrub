@@ -42,7 +42,9 @@ checked in order, and every branch is commented with the case that put it there:
     "password", "api_key". The only tier that catches a weak secret.
 
 2.  The value looks like a credential whatever it is called.
-    A registry rule (its own score), or entropy-scored.  → 0.45 – 0.99
+    a. A registry rule claims it.                        → 0.45 - 0.99
+    b. Or it decodes to something a rule claims.         → the inner score
+    c. Or it is long, opaque and near-random.            → 0.60 - 0.95
     Skipped for identifier names — an account id is not a credential.
 
 3.  A security-related name AND an encoded-looking value. → 0.60

@@ -119,7 +119,7 @@ Default cut is **0.50**. Raise it with `-min-confidence`, or with
 70 formats. Run `secretscrub -rules` to print the list with a confidence for
 each.
 
-- **Cloud:** AWS, Azure, GCP, Alibaba, DigitalOcean, Cloudflare
+- **Cloud:** AWS, Azure, GCP, Firebase, Alibaba, DigitalOcean, Cloudflare
 - **Forges and registries:** GitHub, GitLab, npm, PyPI, RubyGems, Docker Hub,
   NuGet, JFrog
 - **Infrastructure:** Terraform Cloud, HashiCorp Vault, SonarQube
@@ -129,9 +129,9 @@ each.
 - **SaaS:** Atlassian, Linear, Notion, Asana, Dropbox, Figma, Postman,
   New Relic, Grafana, Databricks, Sentry, Okta
 - **Model providers:** Anthropic, OpenAI, Hugging Face, Replicate
-- **Key material:** PEM and OpenSSH private keys, PuTTY keys, age keys, JWTs,
-  authorization headers, connection strings with inline passwords, crypt(3)
-  hashes
+- **Key material:** PEM and OpenSSH private keys, PGP blocks, PuTTY keys, age
+  keys, kubeconfig client keys, JWTs, authorization headers, connection strings
+  with inline passwords, crypt(3) hashes
 
 Plus the three that catch what no list can:
 

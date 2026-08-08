@@ -10,6 +10,19 @@ While the major version is 0 the exported API may change between releases.
 
 ### Fixed
 
+- Documentation accuracy, from an audit that checked every claim against the
+  code rather than re-reading the prose. Five things were wrong: the README's
+  provider list omitted Firebase, PGP and kubeconfig, all of which have rules;
+  `CONTRIBUTING`'s file map omitted `obfuscation.go` entirely; the JSON example
+  in `docs/usage.md` showed a `key` field on an `aws-access-key-id` finding,
+  which the tool cannot produce because that name is on the allowlist; the
+  decision walkthrough in `docs/auditing.md` described tier two without the
+  decoding step added with obfuscation detection; and `-rules` said the detector
+  was "shape rules, plus name-based detection and entropy scoring", which has
+  been three of four tiers since decoding was added.
+
+### Fixed
+
 - **An encoded credential after an assignment went unreported.** Base64 padding
   is `=`, so the scanner's candidate pattern allowed `=` anywhere, which let a
   candidate swallow the `NAME=` in front of it. The combined string decodes as

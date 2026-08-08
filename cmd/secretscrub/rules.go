@@ -49,7 +49,9 @@ func printRules(w io.Writer, opt options) int {
 		}
 		fmt.Fprintf(w, "  %-30s %v  %s\n", r.ID, r.Confidence, r.Description)
 	}
-	fmt.Fprintf(w, "\n%d shape rules, plus name-based detection and entropy scoring.\n", len(rules))
+	fmt.Fprintf(w, "\n%d shape rules, plus name-based detection, entropy scoring,\n"+
+		"and decoding for credentials hidden as base64, hex, character arrays or escapes.\n",
+		len(rules))
 	fmt.Fprintf(w, "Findings are reported at confidence >= %.2f unless -min-confidence says otherwise.\n",
 		secretscrub.DefaultMinConfidence)
 	return 0

@@ -176,6 +176,7 @@ be importable.
 | `finding.go` | `Finding`, and the stable rule IDs a report keys on |
 | `scanner.go` | `Scanner`, `Threshold`, `Meets`, `Detect` |
 | `shape.go` | What a value says about itself, and telling `CHANGEME` from a weak password |
+| `obfuscation.go` | Decoding a value nothing else claimed: base64, hex, character arrays, `\x` escapes |
 | `names.go` | The three fragment lists, the predicates over them, the `{Name, Value}` shape |
 | `values.go` | Timestamps, resource paths, opaque runs, entropy |
 | `redact.go` | `Redact`, `RedactLabels`, `RedactInline` |

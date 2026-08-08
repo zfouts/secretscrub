@@ -79,12 +79,15 @@ named assignment.
       "category": "cloud",
       "confidence": 0.98,
       "description": "AWS access key id",
-      "key": "AWS_ACCESS_KEY_ID",
       "masked": "AKIA************"
     }
   ]
 }
 ```
+
+`key` is present only when the finding came from a named assignment, which is
+why it is absent above: `access_key_id` is on the allowlist, so the name tier
+declines to speak and the shape rule answers alone.
 
 ### sarif
 
