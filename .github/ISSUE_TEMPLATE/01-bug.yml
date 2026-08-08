@@ -1,0 +1,86 @@
+name: Bug report
+description: Something behaves differently from how it is documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste a real credential into this issue.** It is a public
+        tracker, and a leaked key stays leaked even after the issue is deleted.
+        Everything here can be shown with a synthetic value of the same shape.
+
+        If the bug is that a credential *survived* redaction, or that the tool
+        printed one it should have masked, close this and use
+        [private vulnerability reporting](https://github.com/zfouts/secretscrub/security/advisories/new)
+        instead.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, and what the tool did.
+      placeholder: |
+        Ran `secretscrub -redact -w config/` and the YAML no longer parses:
+        the quotes around the value were eaten.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: >-
+        The smallest input that shows it, with synthetic values, and the exact
+        command. This is rendered as a shell block, so no backticks needed.
+      render: shell
+      placeholder: |
+        $ printf 'api-key: "AKIAIOSFODNN7EXAMPLE"\n' > repro.yaml
+        $ secretscrub -redact repro.yaml
+        api-key: <redacted>"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `secretscrub -version`, or the module version if you are using the library.
+      placeholder: secretscrub v0.0.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: how
+    attributes:
+      label: How are you running it
+      multiple: true
+      options:
+        - The command
+        - The Go library
+        - The GitHub Action
+        - A pre-commit hook
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: OS and architecture
+      placeholder: macOS 15 / arm64
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: no-secrets
+    attributes:
+      label: Before submitting
+      options:
+        - label: This issue contains no real credentials, only synthetic ones.
+          required: true

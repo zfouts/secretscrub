@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Build the artifacts but publish nothing.
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      # Create the release and upload the archives.
+      contents: write
+      # Mint the OIDC token cosign signs with. Harmless when signing is
+      # skipped, and impossible to add later without editing this file.
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # GoReleaser needs the full history to resolve the previous tag.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+
+      - uses: sigstore/cosign-installer@v3
+
+      # Signing publishes the repository path and the tag to Sigstore's public
+      # Rekor transparency log, which is append-only. That is fine for a public
+      # repository and a disclosure for a private one, so the decision is made
+      # from the repository's own visibility rather than left to whoever cuts
+      # the tag. A private repo releases unsigned; the day it goes public, the
+      # next release is signed with no change to this file.
+      #
+      # GitHub's native artifact attestations were the other option and are not
+      # available here: on the Free, Pro and Team plans they only work on public
+      # repositories.
+      - name: Decide whether to sign
+        id: signing
+        run: |
+          if [ "${{ github.event.repository.private }}" = "true" ]; then
+            echo "Repository is private: skipping signing to keep it out of the public transparency log."
+            echo "flags=--skip=sign" >> "$GITHUB_OUTPUT"
+          else
+            echo "Repository is public: signing the checksum file."
+            echo "flags=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Release
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: >-
+            release --clean
+            ${{ steps.signing.outputs.flags }}
+            ${{ (github.event_name == 'workflow_dispatch' && inputs.dry-run) && '--snapshot --skip=publish' || '' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # A tag can be cut from a branch that never ran CI. Proving the shipped
+      # binary actually works costs one step and catches the case where the
+      # thing built but does not run.
+      - name: The released binary runs
+        run: |
+          tar -xzf dist/secretscrub_*_linux_amd64.tar.gz -C /tmp secretscrub
+          /tmp/secretscrub -version
+          /tmp/secretscrub -rules > /dev/null
+          printf 'K=AKIAIOSFODNN7EXAMPLE\n' > /tmp/release-check.env
+          if /tmp/secretscrub -quiet /tmp/release-check.env; then
+            echo "the released binary did not find a planted credential"; exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7

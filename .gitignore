@@ -1,0 +1,13 @@
+# Build output
+/bin/
+/secretscrub
+/cmd/secretscrub/secretscrub
+
+# Test and profiling output
+*.test
+*.out
+*.prof
+
+# GoReleaser output
+/dist/
+

@@ -1,0 +1,165 @@
+name: secretscrub
+description: Find credentials in a repository and fail the build if any are found.
+author: Zachary Fouts
+
+branding:
+  icon: shield
+  color: red
+
+inputs:
+  path:
+    description: Path to scan. Defaults to the whole workspace.
+    required: false
+    default: "."
+  version:
+    description: >-
+      Which secretscrub release to run, such as v0.0.1. Defaults to the latest
+      release. Pin it if you want a scan that cannot change under you.
+    required: false
+    default: latest
+  min-confidence:
+    description: >-
+      Report findings at or above this confidence, from 0 to 1. Raise it for a
+      quieter run; 0.9 reports only self-identifying provider formats.
+    required: false
+    default: "0.5"
+  format:
+    description: "Output format: text, json or sarif."
+    required: false
+    default: text
+  output:
+    description: >-
+      Write the report to this file instead of the log. Required if you intend
+      to upload SARIF to code scanning.
+    required: false
+    default: ""
+  exclude:
+    description: Globs to skip, one per line.
+    required: false
+    default: ""
+  all:
+    description: Descend into vendored and version-control directories too.
+    required: false
+    default: "false"
+  fail-on-findings:
+    description: >-
+      Fail the step when credentials are found. Set false to annotate without
+      blocking, which is the usual first move on an existing repository.
+    required: false
+    default: "true"
+
+outputs:
+  findings:
+    description: How many credentials were found.
+    value: ${{ steps.scan.outputs.findings }}
+  exit-code:
+    description: The scanner's exit status. 0 clean, 1 found, 2 error.
+    value: ${{ steps.scan.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    # Downloading the release rather than building from source keeps the action
+    # fast and means it does not need a Go toolchain on the runner. The
+    # checksum is verified, because an action that installs an unverified
+    # binary to look for credentials has the problem backwards.
+    - name: Install secretscrub
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        case "${RUNNER_OS}" in
+          Linux)   os=linux   ;;
+          macOS)   os=darwin  ;;
+          Windows) os=windows ;;
+          *) echo "::error::unsupported runner OS: ${RUNNER_OS}"; exit 1 ;;
+        esac
+        case "${RUNNER_ARCH}" in
+          X64)   arch=amd64 ;;
+          ARM64) arch=arm64 ;;
+          *) echo "::error::unsupported runner arch: ${RUNNER_ARCH}"; exit 1 ;;
+        esac
+        ext=tar.gz; [ "$os" = windows ] && ext=zip
+
+        repo=zfouts/secretscrub
+        if [ "$VERSION" = latest ]; then
+          VERSION=$(gh release view --repo "$repo" --json tagName -q .tagName)
+        fi
+        echo "secretscrub ${VERSION} for ${os}/${arch}"
+
+        dir=$(mktemp -d)
+        gh release download "$VERSION" --repo "$repo" --dir "$dir" \
+          --pattern "secretscrub_*_${os}_${arch}.${ext}" --pattern checksums.txt
+
+        # Verify before unpacking, not after.
+        ( cd "$dir" && sha256sum --check --ignore-missing checksums.txt )
+
+        if [ "$ext" = zip ]; then
+          unzip -q -o "$dir"/secretscrub_*.zip -d "$dir"
+        else
+          tar -xzf "$dir"/secretscrub_*.tar.gz -C "$dir"
+        fi
+        install -m 0755 "$dir/secretscrub" "${RUNNER_TEMP}/secretscrub"
+        "${RUNNER_TEMP}/secretscrub" -version
+
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        SCAN_PATH: ${{ inputs.path }}
+        MIN_CONFIDENCE: ${{ inputs.min-confidence }}
+        FORMAT: ${{ inputs.format }}
+        OUTPUT: ${{ inputs.output }}
+        EXCLUDE: ${{ inputs.exclude }}
+        ALL: ${{ inputs.all }}
+        FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+      run: |
+        set -uo pipefail
+
+        args=(-min-confidence "$MIN_CONFIDENCE" -format "$FORMAT")
+        [ "$ALL" = "true" ] && args+=(-all)
+        while IFS= read -r glob; do
+          [ -n "$glob" ] && args+=(-exclude "$glob")
+        done <<< "$EXCLUDE"
+
+        # The scanner's own exit status is the signal, so it must not be eaten
+        # by a pipe or by set -e before it can be read.
+        report=$(mktemp)
+        "${RUNNER_TEMP}/secretscrub" "${args[@]}" "$SCAN_PATH" > "$report"
+        code=$?
+
+        if [ -n "$OUTPUT" ]; then
+          cp "$report" "$OUTPUT"
+        else
+          cat "$report"
+        fi
+
+        findings=$(grep -cE '^[^[:space:]].*:[0-9]+:[0-9]+$' "$report" || true)
+        [ "$FORMAT" = text ] || findings=unknown
+        {
+          echo "exit-code=$code"
+          echo "findings=$findings"
+        } >> "$GITHUB_OUTPUT"
+
+        # The annotation level follows what the step is actually going to do.
+        # An ::error:: on a step that then passes reads as a broken workflow.
+        case "$code" in
+          0)
+            echo "::notice::secretscrub found no credentials."
+            ;;
+          1)
+            if [ "$FAIL_ON_FINDINGS" = "true" ]; then
+              echo "::error::secretscrub found credentials. See the report above."
+              exit 1
+            fi
+            echo "::warning::secretscrub found credentials, and fail-on-findings is off."
+            ;;
+          *)
+            echo "::error::secretscrub failed with exit status $code."
+            exit "$code"
+            ;;
+        esac
+        exit 0

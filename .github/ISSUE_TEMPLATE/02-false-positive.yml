@@ -1,0 +1,83 @@
+name: False positive
+description: It reported something that is not a credential.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Over-reporting is how a scanner gets turned off, so these are worth
+        fixing. Most are resolved by an allowlist entry or an adjustment to the
+        gate that separates source code from configuration.
+
+        **Never paste a real credential.** If the flagged value is genuinely
+        sensitive, redact it — the rule id, the confidence and the *shape* are
+        what triage needs, not the value.
+
+        If what you found is a **redaction bypass** — input this tool claimed to
+        have redacted while the credential survived in its output — that is a
+        vulnerability, not a bug. Report it through
+        [private vulnerability reporting](https://github.com/zfouts/secretscrub/security/advisories/new)
+        instead of here.
+
+  - type: input
+    id: rule
+    attributes:
+      label: Rule id and confidence
+      description: The middle line of the text report, or `rule` and `confidence` from `-format json`.
+      placeholder: high-entropy-string 0.78
+    validations:
+      required: true
+
+  - type: textarea
+    id: line
+    attributes:
+      label: The line that was flagged
+      description: >-
+        With the value replaced by something of the same shape if it is real.
+        Include the surrounding line: the name beside a value is half of the
+        decision.
+      render: shell
+      placeholder: |
+        build_fingerprint = "a3f9c2e1b8d7460fa9c3e7b1d0428f6c"
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it is not a credential
+      description: What is it actually? A digest, an identifier, a test vector, a generated name?
+      placeholder: >-
+        It is a content hash of the build output. Possession of it authorises
+        nothing, and it appears on every line of a lockfile.
+    validations:
+      required: true
+
+  - type: input
+    id: frequency
+    attributes:
+      label: How many times does it fire in your repository
+      description: One line or ten thousand changes how it should be fixed.
+      placeholder: about 400 lines across 12 lockfiles
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: secretscrub v0.0.1
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: This issue contains no real credentials.
+          required: true
+        - label: >-
+            I checked whether raising `-min-confidence` already filters it, and
+            said so above if it does.
+          required: false

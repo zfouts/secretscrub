@@ -1,0 +1,23 @@
+# A blank issue on a secret scanner is how a real credential ends up pasted
+# into a public tracker. Every route below asks for a synthetic reproduction
+# instead.
+blank_issues_enabled: false
+
+contact_links:
+  - name: Report a security vulnerability (private)
+    url: https://github.com/zfouts/secretscrub/security/advisories/new
+    about: >-
+      A redaction bypass, a leak through the tooling, a denial of service, or
+      anything that makes -redact corrupt a file. Do NOT open a public issue for
+      these. A credential format the detector simply does not recognise is an
+      ordinary bug, not a vulnerability, so use "Missed credential" instead.
+
+  - name: Security policy
+    url: https://github.com/zfouts/secretscrub/blob/main/SECURITY.md
+    about: What counts as a vulnerability here, and what to expect after reporting one.
+
+  - name: Documentation
+    url: https://github.com/zfouts/secretscrub/tree/main/docs
+    about: >-
+      Using the command, using the library, extending the rule set, and auditing
+      what the detector actually does, including its known limits.

@@ -1,0 +1,118 @@
+# GoReleaser configuration. Requires GoReleaser v2.
+#
+# Validate a change to this file before pushing a tag, because a tag is the
+# only trigger and a broken release is one you have to delete and re-cut:
+#
+#     goreleaser check
+#     goreleaser release --snapshot --clean
+
+version: 2
+
+project_name: secretscrub
+
+before:
+  hooks:
+    # A tag that does not build or does not pass its own tests is not a release.
+    - go mod tidy
+    - go vet ./...
+    - go test ./...
+
+builds:
+  - id: secretscrub
+    main: ./cmd/secretscrub
+    binary: secretscrub
+    env:
+      # No cgo, so the binaries are static and run on any libc. This tool gets
+      # dropped into scratch containers and CI images.
+      - CGO_ENABLED=0
+    flags:
+      # Strip the build machine's paths out of the binary, so the same source
+      # and toolchain produce the same bytes anywhere.
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: secretscrub
+    ids: [secretscrub]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+      - NOTICE
+      - CHANGELOG.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+# Keyless signing over the checksum file, which transitively covers every
+# archive in it.
+#
+# Cosign gets its identity from the GitHub Actions OIDC token, so there is no
+# private key to store or rotate. The cost is disclosure: the certificate and
+# its signing identity go into Sigstore's PUBLIC Rekor transparency log, which
+# means the repository path and the tag become public whether or not the
+# repository is. The release workflow therefore skips this step while the
+# repository is private, and starts signing by itself the day it goes public.
+signs:
+  - id: cosign
+    cmd: cosign
+    artifacts: checksum
+    output: true
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - --yes
+
+changelog:
+  # CHANGELOG.md is written by hand and says why things changed. The release
+  # notes below point at it rather than restating a list of commit subjects.
+  disable: true
+
+release:
+  draft: false
+  prerelease: auto
+  name_template: "{{ .Version }}"
+  header: |
+    ## secretscrub {{ .Version }}
+
+    Finds credentials and removes them. See [CHANGELOG.md](https://github.com/zfouts/secretscrub/blob/{{ .Tag }}/CHANGELOG.md)
+    for what changed.
+  footer: |
+    ## Install
+
+    ```sh
+    go install github.com/zfouts/secretscrub/cmd/secretscrub@{{ .Tag }}
+    ```
+
+    Or download a binary below. Verify it first:
+
+    ```sh
+    sha256sum --check --ignore-missing checksums.txt
+    ```
+
+    If `checksums.txt.pem` and `checksums.txt.sig` are attached, the checksum
+    file was signed by the release workflow and you can verify that too:
+
+    ```sh
+    cosign verify-blob checksums.txt \
+      --certificate checksums.txt.pem \
+      --signature checksums.txt.sig \
+      --certificate-identity-regexp 'https://github.com/zfouts/secretscrub/.*' \
+      --certificate-oidc-issuer https://token.actions.githubusercontent.com
+    ```
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"

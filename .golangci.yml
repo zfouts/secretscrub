@@ -1,0 +1,80 @@
+# golangci-lint configuration. Requires golangci-lint v2.
+#
+# The enabled set is deliberately small and opinion-free: correctness, dead
+# code, and the two style checks the Go project itself applies. This package is
+# a security control that people have to be able to read and review, so a lint
+# rule earns its place by catching a bug, not by enforcing a preference.
+#
+# Verify a change to this file before pushing it:
+#
+#     golangci-lint config verify && golangci-lint run ./...
+
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - copyloopvar
+    - errorlint
+    - gocritic
+    - misspell
+    - nilerr
+    - revive
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+
+  settings:
+    errcheck:
+      exclude-functions:
+        # Writing a report to stdout or an error to stderr. There is nothing
+        # useful to do when it fails, and checking each one would triple the
+        # size of the reporting code for no behaviour change.
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        # Deferred on a file opened for reading, where the close error carries
+        # no information the read did not already give.
+        - (*os.File).Close
+
+    revive:
+      rules:
+        # Every exported symbol needs a doc comment starting with its name.
+        # This is the rule that keeps the package readable on pkg.go.dev.
+        - name: exported
+          arguments: [checkPrivateReceivers, disableStutteringCheck]
+        - name: package-comments
+        - name: indent-error-flow
+        - name: errorf
+        - name: context-as-argument
+        - name: unexported-return
+
+    gocritic:
+      enabled-tags: [diagnostic, style, performance]
+      disabled-checks:
+        # Fires on the tiered decision in classify, where the sequence of ifs
+        # is the documentation.
+        - ifElseChain
+        # The rule registry is a long literal by design.
+        - hugeParam
+        # Would rewrite the PEM delimiters as `-{5}BEGIN`, which is shorter and
+        # unreadable. These patterns are matched against real file content by
+        # eye far more often than by a profiler.
+        - regexpSimplify
+
+  exclusions:
+    rules:
+      # Test files hold synthetic credentials on purpose; long lines, long
+      # literal tables and copied structs are the point of them.
+      - path: _test\.go
+        linters: [gocritic, unparam, revive, errcheck]
+
+formatters:
+  enable:
+    - gofmt
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

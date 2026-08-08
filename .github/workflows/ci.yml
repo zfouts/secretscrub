@@ -1,0 +1,125 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # A weekly run catches a vulnerability disclosed against a Go release we
+    # build with, which a push-triggered pipeline would not.
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test (go ${{ matrix.go }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest supported release and the current one. The scanner walks
+        # paths and reads files, so Windows earns its place in the matrix.
+        go: ["1.24", "stable"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: ${{ matrix.go }}
+          check-latest: true
+      - name: go vet
+        run: go vet ./...
+      - name: test
+        run: go test -race -count=1 ./...
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "not gofmt'd:"; echo "$unformatted"; exit 1
+          fi
+      - name: go mod tidy is a no-op
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          # Pinned to a minor series rather than "latest": a new lint release
+          # adding a check should not turn a green branch red without anybody
+          # changing anything. The config in .golangci.yml is v2 format, which
+          # golangci-lint v1 cannot parse.
+          version: v2.12
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      # A floor rather than a target. Chasing the last fraction produces tests
+      # that assert nothing; letting it slide is how an exported function ends
+      # up with no test at all, which is what this number is really watching
+      # for.
+      - name: Statement coverage is at least 98%
+        run: |
+          go test -coverprofile=cover.out -covermode=atomic ./...
+          go tool cover -func=cover.out | tail -1
+          pct=$(go tool cover -func=cover.out | awk 'END {gsub(/%/,"",$3); print $3}')
+          echo "total: ${pct}%"
+          awk -v p="$pct" 'BEGIN { exit !(p < 98.0) }' && {
+            echo "::error::coverage ${pct}% is below the 98% floor"; exit 1; }
+          echo "::notice::coverage ${pct}%"
+
+  vuln:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - run: govulncheck ./...
+
+  self-scan:
+    name: scan itself
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      # The detector's own test fixtures are synthetic credentials, so this is
+      # expected to find things. It runs to prove the command still works
+      # end to end on a real tree, not to gate the build.
+      - name: scan the working tree
+        run: go run ./cmd/secretscrub -exit-zero -quiet -min-confidence 0.9 .
+      # The claim the command makes about itself: what it rewrites, it would
+      # not then report.
+      - name: the redaction round-trip holds
+        run: |
+          printf 'DB_PASSWORD=hunter2\nAWS_UPLOADER=AKIAIOSFODNN7EXAMPLE\n' > "$RUNNER_TEMP/rt.env"
+          go run ./cmd/secretscrub -redact -w -quiet "$RUNNER_TEMP/rt.env"
+          go run ./cmd/secretscrub "$RUNNER_TEMP/rt.env"
+
+  benchmarks:
+    name: benchmarks compile and run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+      - run: go test -run '^$' -bench . -benchtime 10x ./...

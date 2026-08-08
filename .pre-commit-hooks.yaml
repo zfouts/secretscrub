@@ -1,0 +1,47 @@
+# Hooks for https://pre-commit.com
+#
+#   repos:
+#     - repo: https://github.com/zfouts/secretscrub
+#       rev: v0.0.1
+#       hooks:
+#         - id: secretscrub
+#
+# pre-commit builds the binary from source with the Go toolchain, so the hook
+# runs the same detector the library ships rather than a copy of its rules.
+
+- id: secretscrub
+  name: secretscrub
+  description: Find credentials in the files about to be committed.
+  entry: secretscrub
+  language: golang
+  # Only what is staged. A commit is the moment a credential becomes hard to
+  # remove, and scanning the whole tree on every commit is what gets a hook
+  # disabled.
+  pass_filenames: true
+  types: [text]
+  # Quiet, because a hook that prints a summary on every clean commit is a hook
+  # people stop reading.
+  args: [-quiet]
+
+- id: secretscrub-strict
+  name: secretscrub (near-certainties only)
+  description: >-
+    Find credentials in the files about to be committed, reporting only
+    self-identifying provider formats. Use this on a repository with existing
+    findings you have not triaged yet.
+  entry: secretscrub
+  language: golang
+  pass_filenames: true
+  types: [text]
+  args: [-quiet, -min-confidence, "0.9"]
+
+- id: secretscrub-all
+  name: secretscrub (whole repository)
+  description: >-
+    Scan the whole repository rather than the staged files. Slower; suited to
+    a manual or pre-push stage.
+  entry: secretscrub
+  language: golang
+  pass_filenames: false
+  always_run: true
+  args: [-quiet, "."]

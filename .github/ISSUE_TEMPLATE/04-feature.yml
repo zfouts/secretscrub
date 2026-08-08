@@ -1,0 +1,69 @@
+name: Feature request
+description: Something it should do and does not.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If what you want is a new credential format recognised, use
+        **Missed credential** instead — that route asks the right questions. For
+        anything that lets a credential escape redaction, use
+        [private vulnerability reporting](https://github.com/zfouts/secretscrub/security/advisories/new).
+
+        **Never paste a real credential into this public tracker**, including in
+        example output.
+
+        Two standing constraints, so a proposal is not wasted:
+
+        - **No third-party dependencies.** This is a tool people run over their
+          credentials, and its supply chain should stay readable in an
+          afternoon.
+        - **One detector, reviewed as code.** No plugin system and no runtime
+          config file for rules. A gap fixed in one copy is a gap left open in
+          the others.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do that you cannot do today?
+      placeholder: >-
+        Our CI stores scan output as a baseline, and every run re-reports the
+        findings we have already triaged.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like it to do
+      description: If you have a shape in mind, sketch the flag or the API call.
+      placeholder: |
+        secretscrub -baseline .secretscrub-baseline.json .
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried instead
+      description: >-
+        Existing flags, `-exclude`, a different `-min-confidence`, filtering the
+        JSON output. Knowing what fell short shapes the fix.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which part of the project
+      multiple: true
+      options:
+        - The command
+        - The Go library
+        - The GitHub Action
+        - Pre-commit hooks
+        - Documentation
+        - Releases and packaging
+    validations:
+      required: true
