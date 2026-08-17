@@ -8,7 +8,36 @@ While the major version is 0 the exported API may change between releases.
 
 ## [Unreleased]
 
+## [0.0.2] - 2026-08-17
+
+Two redaction bugs, both in the same tier and both found while confirming the
+other. The first published credentials; the second hid something that was never
+a credential.
+
 ### Fixed
+
+- **An identifier name could overrule a self-identifying credential format.**
+  The identity exemption, which keeps a zone id or a resource name from being
+  read as key material, bypassed the entire shape tier rather than only the two
+  rules it has standing to overrule. So a value under `Name`, `DisplayName`,
+  `name`, `id` or any `*_id`/`*_name` key was published verbatim no matter what
+  it was: an RSA private key, an `AKIA…` access key id, a `ghp_…` token, a JWT.
+  The exemption now suppresses only `high-entropy-string` and `hex-string`,
+  which are guesses from randomness — and an identifier is random by
+  construction, so the name is the better evidence. A PEM header is not a guess.
+  The test is on the rule rather than on the category, because the `jwt` rule is
+  filed under `generic`.
+
+- **AWS Identity Center role names were redacted, pointlessly.** AWS generates
+  `AWSReservedSSO_<PermissionSetName>_<16 hex>`, and the hex suffix scored 0.77
+  to 0.81 on the entropy fallback. The name half could not save it:
+  `identityContainer` matches `_name` and snake_case, while the AWS SDK spells
+  the field `RoleName`. So the role name was redacted under `RoleName` while the
+  identical string survived one field over inside its own `Arn` — protecting
+  nothing and costing the field, on precisely the SSO-provisioned roles an
+  access review has to read. The generated name is now exempt by its own
+  anchored format, beside the existing resource-reference check. A credential
+  name still wins: this clears the shape tier only.
 
 - Documentation accuracy, from an audit that checked every claim against the
   code rather than re-reading the prose. Five things were wrong: the README's
@@ -20,8 +49,6 @@ While the major version is 0 the exported API may change between releases.
   decoding step added with obfuscation detection; and `-rules` said the detector
   was "shape rules, plus name-based detection and entropy scoring", which has
   been three of four tiers since decoding was added.
-
-### Fixed
 
 - **An encoded credential after an assignment went unreported.** Base64 padding
   is `=`, so the scanner's candidate pattern allowed `=` anywhere, which let a
@@ -163,5 +190,6 @@ cut rather than removed:
   matters. The shape rule still reports the value wherever it appears in a
   document.
 
-[Unreleased]: https://github.com/zfouts/secretscrub/compare/v0.0.1...HEAD
+[Unreleased]: https://github.com/zfouts/secretscrub/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/zfouts/secretscrub/compare/v0.0.1...v0.0.2
 [0.0.1]: https://github.com/zfouts/secretscrub/releases/tag/v0.0.1

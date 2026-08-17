@@ -169,7 +169,7 @@ There are three hooks, in [`.pre-commit-hooks.yaml`](../.pre-commit-hooks.yaml):
 ```yaml
 repos:
   - repo: https://github.com/zfouts/secretscrub
-    rev: v0.0.1
+    rev: v0.0.2
     hooks:
       - id: secretscrub          # staged files, default cut
       # - id: secretscrub-strict # staged files, near-certainties only
@@ -196,7 +196,7 @@ done
 ### GitHub Actions
 
 ```yaml
-- uses: zfouts/secretscrub@v0.0.1
+- uses: zfouts/secretscrub@v0.0.2
 ```
 
 The action downloads the release binary for the runner, verifies its checksum
@@ -219,7 +219,7 @@ Annotating an existing repository without blocking it, and feeding code
 scanning:
 
 ```yaml
-- uses: zfouts/secretscrub@v0.0.1
+- uses: zfouts/secretscrub@v0.0.2
   with:
     min-confidence: "0.9"
     fail-on-findings: "false"

@@ -30,14 +30,14 @@ build from a clone with `go build -o secretscrub ./cmd/secretscrub`.
 ### In GitHub Actions
 
 ```yaml
-- uses: zfouts/secretscrub@v0.0.1
+- uses: zfouts/secretscrub@v0.0.2
 ```
 
 That fails the build when it finds something. To annotate without blocking, or
 to feed code scanning:
 
 ```yaml
-- uses: zfouts/secretscrub@v0.0.1
+- uses: zfouts/secretscrub@v0.0.2
   with:
     min-confidence: "0.9"
     fail-on-findings: "false"
@@ -53,7 +53,7 @@ to feed code scanning:
 ```yaml
 repos:
   - repo: https://github.com/zfouts/secretscrub
-    rev: v0.0.1
+    rev: v0.0.2
     hooks:
       - id: secretscrub
 ```
