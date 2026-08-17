@@ -58,12 +58,21 @@ func (s *Scanner) classify(key string, inherited bool, value string) Finding {
 	// Tier 2: the value looks like a credential whatever it is called. This is
 	// what catches the secrets nobody names "password".
 	//
-	// Identity blocks are exempt. An S3 canonical user id is 64 hex
-	// characters, so the hex rule silenced the Owner and Grantee ids on every
-	// bucket ACL — and "which account is this bucket granted to" is the
-	// cross-account exposure question an ACL exists to answer.
+	// Identity blocks are exempt from the two GENERIC fallbacks. An S3
+	// canonical user id is 64 hex characters, so the hex rule silenced the Owner
+	// and Grantee ids on every bucket ACL — and "which account is this bucket
+	// granted to" is the cross-account exposure question an ACL exists to
+	// answer.
+	//
+	// The exemption stops there, because those two rules are the only ones it
+	// has any standing to overrule. They are guesses from randomness, and an
+	// identifier is random by construction, so the name is better evidence than
+	// the measurement. A provider format is not a guess: a PEM header, an AKIA
+	// prefix, a ghp_ prefix and a JWT's three dotted segments each identify what
+	// the value IS, and no field name makes that reading wrong. Before this
+	// split, "Name" or "id" published an RSA private key verbatim.
 	best := Finding{}
-	if !identityContainer(key) && shape.Found() {
+	if shape.Found() && (!isGenericShapeFallback(shape.Rule) || !identityContainer(key)) {
 		shape.Key = key
 		best = shape
 	}
@@ -90,6 +99,17 @@ func (s *Scanner) classify(key string, inherited bool, value string) Finding {
 		}
 	}
 	return best
+}
+
+// isGenericShapeFallback reports whether a rule concluded only that a value
+// looks random, with nothing in it naming what it is.
+//
+// These are the two rules an identifier name may overrule, and the test is on
+// the rule rather than on the Category: the "jwt" rule is filed under
+// [CategoryGeneric] because a JWT is nobody's proprietary format, but its three
+// dotted base64 segments are as self-identifying as an AKIA prefix.
+func isGenericShapeFallback(rule string) bool {
+	return rule == RuleHighEntropyString || rule == RuleHexString
 }
 
 // nameFinding scores a value whose own name asserts it is a credential.

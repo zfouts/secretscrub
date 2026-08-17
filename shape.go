@@ -23,6 +23,9 @@ func detectShape(value string) Finding {
 	if looksLikeResourceReference(value) {
 		return Finding{}
 	}
+	if awsReservedSSOName.MatchString(value) {
+		return Finding{}
+	}
 
 	if best := matchRules(value); best.Found() {
 		return best
@@ -68,6 +71,24 @@ func detectShape(value string) Finding {
 	}
 	return Finding{}
 }
+
+// awsReservedSSOName matches the role name AWS Identity Center generates for a
+// permission set: AWSReservedSSO_<PermissionSetName>_<16 hex>.
+//
+// The trailing hex is what earned these an entropy score of 0.77–0.81, and the
+// name half of the detector could not save them: identityContainer matches
+// "_name" and snake_case, while the AWS SDK spells the field "RoleName". So the
+// role name was redacted under RoleName while the identical string survived one
+// field over inside its own Arn, which protects nothing and costs the field —
+// and it hit precisely the SSO-provisioned roles an access review most needs to
+// read.
+//
+// Exempted here rather than by name because the format is anchored and
+// AWS-generated: nothing else can be shaped into it, and a credential cannot be
+// hidden in it. A credential NAME still wins, since this only clears the shape
+// tier.
+var awsReservedSSOName = regexp.MustCompile(
+	`^AWSReservedSSO_[A-Za-z0-9+=,.@_-]{1,64}_[0-9a-f]{16}$`)
 
 // Recognising a value nobody has filled in yet, as against one somebody has.
 

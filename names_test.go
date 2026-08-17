@@ -305,3 +305,70 @@ func TestCertificateAuthoritySurvives(t *testing.T) {
 		t.Error("private_key survived redaction")
 	}
 }
+
+// The role name AWS Identity Center generates for a permission set, which the
+// entropy fallback was scoring at 0.77–0.81 on the strength of its 16-hex
+// suffix.
+//
+// The name half could not save it: identityContainer matches "_name" and
+// snake_case, and the SDK spells the field "RoleName". So it was redacted under
+// RoleName while the identical string survived one field over inside its own
+// Arn — and these are exactly the roles an access review has to read.
+func TestAWSReservedSSONamesSurvive(t *testing.T) {
+	cases := []struct{ key, value string }{
+		{"RoleName", "AWSReservedSSO_AdministratorAccess_1a2b3c4d5e6f7890"},
+		{"InstanceProfileName", "AWSReservedSSO_ReadOnly_9f8e7d6c5b4a3210"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.key, func(t *testing.T) {
+			got, redacted := Redact(tc.key, tc.value)
+			if redacted {
+				t.Errorf("%s was redacted; an AWS-generated role name is not a credential", tc.key)
+			}
+			if got != tc.value {
+				t.Errorf("%s = %q, want it unchanged", tc.key, got)
+			}
+		})
+	}
+	// Exempting the generated name must not exempt the field. A real credential
+	// under the same key is still caught by the generic fallback, which is the
+	// only tier that can catch one with no marker in it at all.
+	if _, redacted := Redact("RoleName", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"); !redacted {
+		t.Error("an AWS secret access key survived under RoleName")
+	}
+}
+
+// An identifier name may overrule a guess from randomness. It may not overrule
+// a format that says what it is.
+//
+// identityContainer bypassed the whole shape tier, so every one of these was
+// published verbatim under a name the exemption covers — an RSA private key
+// under "Name", an AKIA key under "DisplayName". A PEM header is not a
+// measurement of entropy that a field name can outweigh.
+func TestIdentityExemptionDoesNotOverruleAnAnchoredFormat(t *testing.T) {
+	values := []struct{ what, value string }{
+		{"pem", "-----BEGIN RSA PRIVATE KEY-----\nMIIEow==\n-----END RSA PRIVATE KEY-----"},
+		{"aws-access-key-id", "AKIAIOSFODNN7EXAMPLE"},
+		{"github-token", "ghp_16C7e42F292c6912E7710c838347Ae178B4a"},
+		{"jwt", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIn0.abc123"},
+	}
+	for _, key := range []string{"Name", "DisplayName", "name", "id", "resource_id"} {
+		for _, v := range values {
+			t.Run(key+"/"+v.what, func(t *testing.T) {
+				if _, redacted := Redact(key, v.value); !redacted {
+					t.Errorf("%s=%s survived redaction; an anchored format outranks a name", key, v.what)
+				}
+			})
+		}
+	}
+	// The generic fallbacks are still exempt under those names, which is the
+	// whole point of the exemption and the reason identifiers stay readable.
+	for _, tc := range []struct{ key, value string }{
+		{"id", "4d87c09dd243c73c6fce67bdae31018f"},
+		{"name", "pages-worker--6305616-production"},
+	} {
+		if _, redacted := Redact(tc.key, tc.value); redacted {
+			t.Errorf("%s=%q was redacted; the entropy tiers must stay exempt", tc.key, tc.value)
+		}
+	}
+}
