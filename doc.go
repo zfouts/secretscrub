@@ -37,6 +37,14 @@ preferred to trusting the scan that produced it.
 The package has no dependencies outside the standard library, and no mutable
 package-level state; a [Scanner] is safe for concurrent use.
 
+[Version] is the release this build came from. A consumer that redacts data
+before shipping it should record that value alongside the result: redaction is
+lossy on purpose and [RedactedMarker] is identical in every release, so nothing
+in the output says which rules produced it. That matters the moment a redaction
+gap is closed — v0.0.2 fixed a credential in an identity field being published
+rather than redacted, and without a version recorded next to the data, artifacts
+from before and after that fix are indistinguishable.
+
 # Confidence
 
 The scale is calibrated so the interesting thresholds fall between the rungs:
