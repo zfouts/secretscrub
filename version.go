@@ -31,4 +31,4 @@ package secretscrub
 // from the tag is worse than none: it would answer the question confidently and
 // wrongly. TestVersionMatchesTheGitTag checks it against the repository's own
 // tags, so a release that forgets to move it fails before it ships.
-const Version = "v0.0.2"
+const Version = "v0.0.3"
