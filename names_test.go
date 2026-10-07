@@ -372,3 +372,25 @@ func TestIdentityExemptionDoesNotOverruleAnAnchoredFormat(t *testing.T) {
 		}
 	}
 }
+
+// A Direct Connect virtual interface states its BGP MD5 password as AuthKey,
+// on the interface and again on each BGP peer, and the generated router
+// configuration embeds it in plain text. An operator-typed key is short and
+// unremarkable, so no value test will catch it: the name has to. "auth" and
+// "key" were each only on the security list, which never redacts alone.
+func TestBGPAuthKeysAreRedactedByName(t *testing.T) {
+	for _, key := range []string{"AuthKey", "authKey", "auth_key", "CustomerRouterConfig"} {
+		if _, redacted := Redact(key, "s3cret12"); !redacted {
+			t.Errorf("%s survived redaction", key)
+		}
+	}
+	// The fragment must not reach the references the allowlist protects.
+	for _, tc := range []struct{ key, value string }{
+		{"AuthKeyId", "dxkey-0123"},
+		{"OAuthKeyName", "deploy"},
+	} {
+		if _, redacted := Redact(tc.key, tc.value); redacted {
+			t.Errorf("%s is a reference to a key, not one, and was redacted", tc.key)
+		}
+	}
+}

@@ -8,6 +8,16 @@ While the major version is 0 the exported API may change between releases.
 
 ## [Unreleased]
 
+### Fixed
+
+- **A BGP session password was published verbatim.** Direct Connect states a
+  virtual interface's MD5 key as `AuthKey`, on the interface and on each BGP
+  peer, and embeds it in `CustomerRouterConfig`. "auth" and "key" were each on
+  the security list, which lowers the bar and never redacts on its own, and an
+  operator-typed key is short enough to clear no value test. `authkey`,
+  `auth_key`, `routerconfig` and `router_config` are now credential names.
+  References stay readable: `AuthKeyId` and `*KeyName` are still allowlisted.
+
 ## [0.0.2] - 2026-08-17
 
 Two redaction bugs, both in the same tier and both found while confirming the

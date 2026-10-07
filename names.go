@@ -17,6 +17,10 @@ var credentialNameFragments = []string{
 	"bearer", "client_secret", "clientsecret",
 	"cred", "dsn", "jwt", "otp", "passphrase", "passwd", "password", "pwd",
 	"secret", "token", "webhook",
+	// A BGP session's MD5 password: Direct Connect states it as AuthKey on the
+	// interface and on each peer, and embeds it in the generated router
+	// configuration. "auth" and "key" alone are only security hints.
+	"authkey", "auth_key", "routerconfig", "router_config",
 	// Connection strings routinely carry an inline password.
 	"connection_string", "connectionstring", "conn_str", "database_url", "db_url", "db_uri",
 }
