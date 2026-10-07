@@ -8,6 +8,8 @@ While the major version is 0 the exported API may change between releases.
 
 ## [Unreleased]
 
+## [0.0.4] - 2026-10-07
+
 ### Fixed
 
 - **A BGP session password was published verbatim.** Direct Connect states a
